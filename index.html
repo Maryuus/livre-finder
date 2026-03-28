@@ -6,144 +6,83 @@
   <title>LivreFinder</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --blue: #0071e3;
-      --bg: #f2f2f7;
-      --card: #ffffff;
-      --text: #1c1c1e;
-      --muted: #8e8e93;
-      --border: #e5e5ea;
-      --radius: 13px;
+      --blue: #0071e3; --bg: #f2f2f7; --card: #fff;
+      --text: #1c1c1e; --muted: #8e8e93; --border: #e5e5ea; --radius: 13px;
     }
-
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh;
       padding-bottom: env(safe-area-inset-bottom, 24px);
     }
-
     .header {
-      background: var(--card);
-      border-bottom: 1px solid var(--border);
-      padding: 20px 20px 14px;
-      text-align: center;
-      position: sticky;
-      top: 0;
-      z-index: 10;
+      background: var(--card); border-bottom: 1px solid var(--border);
+      padding: 18px 20px 12px; text-align: center;
+      position: sticky; top: 0; z-index: 10;
     }
-    .header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
-    .header p  { font-size: 13px; color: var(--muted); margin-top: 3px; }
+    .header h1 { font-size: 22px; font-weight: 700; letter-spacing: -.3px; }
+    .header p  { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
     .search-box {
-      margin: 16px;
-      background: var(--card);
-      border-radius: var(--radius);
-      padding: 16px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.09);
+      margin: 14px 16px 0; background: var(--card);
+      border-radius: var(--radius); padding: 14px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.09);
     }
-
     .field { margin-bottom: 10px; }
     .field label {
-      display: block;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      margin-bottom: 5px;
+      display: block; font-size: 11px; font-weight: 600;
+      color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 5px;
     }
     .field input {
-      width: 100%;
-      padding: 11px 14px;
-      background: var(--bg);
-      border: 1.5px solid transparent;
-      border-radius: 10px;
-      font-size: 16px;
-      font-family: inherit;
-      color: var(--text);
-      -webkit-appearance: none;
-      transition: border-color 0.15s, background 0.15s;
+      width: 100%; padding: 11px 14px; background: var(--bg);
+      border: 1.5px solid transparent; border-radius: 10px;
+      font-size: 16px; font-family: inherit; color: var(--text);
+      -webkit-appearance: none; transition: border-color .15s, background .15s;
     }
-    .field input:focus {
-      outline: none;
-      border-color: var(--blue);
-      background: white;
-    }
-
+    .field input:focus { outline: none; border-color: var(--blue); background: #fff; }
     .btn-search {
-      width: 100%;
-      padding: 13px;
-      background: var(--blue);
-      color: white;
-      border: none;
-      border-radius: 10px;
-      font-size: 16px;
-      font-weight: 600;
-      font-family: inherit;
-      cursor: pointer;
-      -webkit-appearance: none;
-      transition: opacity 0.15s;
+      width: 100%; padding: 13px; background: var(--blue); color: #fff;
+      border: none; border-radius: 10px; font-size: 16px; font-weight: 600;
+      font-family: inherit; cursor: pointer; -webkit-appearance: none;
+      transition: opacity .15s;
     }
-    .btn-search:active   { opacity: 0.8; }
-    .btn-search:disabled { opacity: 0.5; cursor: default; }
+    .btn-search:active   { opacity: .8; }
+    .btn-search:disabled { opacity: .5; cursor: default; }
+
+    /* ── Filtre langue ── */
+    .lang-bar {
+      display: flex; gap: 8px; padding: 12px 16px 0;
+    }
+    .lang-btn {
+      flex: 1; padding: 8px 0; border-radius: 10px; border: 1.5px solid var(--border);
+      background: var(--card); font-size: 13px; font-weight: 600; font-family: inherit;
+      color: var(--muted); cursor: pointer; transition: all .15s; -webkit-appearance: none;
+    }
+    .lang-btn.active {
+      border-color: var(--blue); background: var(--blue); color: #fff;
+    }
 
     .results { padding: 0 16px 32px; }
-
     .section-label {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      margin: 16px 0 10px;
+      font-size: 11px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .8px; margin: 14px 0 10px;
     }
-
     .card {
-      background: var(--card);
-      border-radius: var(--radius);
-      padding: 14px;
-      margin-bottom: 10px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
-      display: flex;
-      gap: 12px;
+      background: var(--card); border-radius: var(--radius); padding: 14px;
+      margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.07);
+      display: flex; gap: 12px;
     }
-
-    .cover {
-      width: 56px;
-      height: 78px;
-      border-radius: 6px;
-      object-fit: cover;
-      flex-shrink: 0;
-      background: var(--bg);
-    }
+    .cover    { width: 56px; height: 78px; border-radius: 6px; object-fit: cover; flex-shrink: 0; background: var(--bg); }
     .cover-ph {
-      width: 56px;
-      height: 78px;
-      border-radius: 6px;
-      background: linear-gradient(145deg, #e5e5ea, #d1d1d6);
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 24px;
+      width: 56px; height: 78px; border-radius: 6px; flex-shrink: 0;
+      background: linear-gradient(145deg,#e5e5ea,#d1d1d6);
+      display: flex; align-items: center; justify-content: center; font-size: 24px;
     }
-
-    .card-body {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
+    .card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
     .card-title  { font-size: 15px; font-weight: 600; line-height: 1.3; }
     .card-author { font-size: 13px; color: var(--muted); }
-
     .tags { display: flex; gap: 5px; flex-wrap: wrap; margin: 4px 0; }
     .tag  { padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-
     .tag-epub        { background: #d1fae5; color: #065f46; }
     .tag-pdf         { background: #fee2e2; color: #991b1b; }
     .tag-mixed       { background: #f3f4f6; color: #374151; }
@@ -154,44 +93,20 @@
     .tag-standard    { background: #f0fdfa; color: #0f766e; }
     .tag-feedbooks   { background: #fff7ed; color: #c2410c; }
     .tag-lang        { background: var(--bg); color: var(--muted); }
-
     .btn-dl {
-      display: inline-block;
-      margin-top: 6px;
-      padding: 8px 14px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      text-decoration: none;
-      color: white;
-      background: var(--blue);
-      align-self: flex-start;
+      display: inline-block; margin-top: 6px; padding: 8px 14px;
+      border-radius: 8px; font-size: 13px; font-weight: 600;
+      text-decoration: none; color: #fff; background: var(--blue); align-self: flex-start;
     }
     .btn-dl-grey { background: #636366; }
-
-    .loading {
-      text-align: center;
-      padding: 48px 24px;
-      color: var(--muted);
-    }
+    .loading { text-align: center; padding: 48px 24px; color: var(--muted); }
     .spinner {
-      width: 28px;
-      height: 28px;
-      border: 2.5px solid var(--border);
-      border-top-color: var(--blue);
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      margin: 0 auto 12px;
+      width: 28px; height: 28px; border: 2.5px solid var(--border);
+      border-top-color: var(--blue); border-radius: 50%;
+      animation: spin .7s linear infinite; margin: 0 auto 12px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    .empty {
-      text-align: center;
-      padding: 48px 24px;
-      color: var(--muted);
-      font-size: 15px;
-      line-height: 1.6;
-    }
+    .empty { text-align: center; padding: 48px 24px; color: var(--muted); font-size: 15px; line-height: 1.6; }
   </style>
 </head>
 <body>
@@ -215,178 +130,286 @@
   </form>
 </div>
 
+<div class="lang-bar" id="langBar" style="display:none">
+  <button class="lang-btn active" data-lang="">Toutes</button>
+  <button class="lang-btn" data-lang="FR">🇫🇷 Français</button>
+  <button class="lang-btn" data-lang="EN">🇬🇧 English</button>
+</div>
+
 <div class="results" id="results"></div>
 
 <script>
-  const $id = id => document.getElementById(id);
+const $id = id => document.getElementById(id);
 
-  // Expansion des noms connus pour éviter les faux positifs sur Gutenberg
-  const FULL_NAMES = {
-    'camus':        'albert camus',
-    'kafka':        'franz kafka',
-    'orwell':       'george orwell',
-    'sartre':       'jean-paul sartre',
-    'dostoievski':  'fyodor dostoevsky',
-    'dostoevsky':   'fyodor dostoevsky',
-    'hugo':         'victor hugo',
-    'zola':         'emile zola',
-    'balzac':       'honore de balzac',
-    'flaubert':     'gustave flaubert',
-    'proust':       'marcel proust',
-    'baudelaire':   'charles baudelaire',
-    'nietzsche':    'friedrich nietzsche',
-    'freud':        'sigmund freud',
-    'marx':         'karl marx',
-    'rousseau':     'jean-jacques rousseau',
-    'voltaire':     'voltaire',
-    'moliere':      'moliere',
-  };
+// Noms complets pour éviter les faux positifs
+const FULL = {
+  'camus':'albert camus','kafka':'franz kafka','orwell':'george orwell',
+  'sartre':'jean-paul sartre','dostoievski':'fyodor dostoevsky',
+  'dostoevsky':'fyodor dostoevsky','hugo':'victor hugo','zola':'emile zola',
+  'balzac':'honore de balzac','flaubert':'gustave flaubert',
+  'proust':'marcel proust','baudelaire':'charles baudelaire',
+  'nietzsche':'friedrich nietzsche','freud':'sigmund freud',
+  'marx':'karl marx','rousseau':'jean-jacques rousseau',
+  'tolstoi':'leo tolstoy','tolstoy':'leo tolstoy',
+  'shakespeare':'william shakespeare','dickens':'charles dickens',
+};
+const fullName = a => a ? (FULL[a.toLowerCase().trim()] || a) : '';
+const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 
-  $id('form').addEventListener('submit', async e => {
-    e.preventDefault();
-    const title  = $id('title').value.trim();
-    const author = $id('author').value.trim();
-    if (!title && !author) return;
+let allResults = [];
+let activeLang = '';
 
-    $id('btn').disabled    = true;
-    $id('btn').textContent = 'Recherche…';
-    $id('results').innerHTML = `
-      <div class="loading">
-        <div class="spinner"></div>
-        <p>Recherche sur 6 bibliothèques…</p>
-      </div>`;
-
-    const [g, u, o] = await Promise.allSettled([
-      fetchGutenberg(title, author),
-      fetchServer(author, title),
-      fetchOpenLibrary(title, author),
-    ]);
-
-    const all = [
-      ...(g.status === 'fulfilled' ? g.value : []),
-      ...(u.status === 'fulfilled' ? u.value : []),
-      ...(o.status === 'fulfilled' ? o.value : []),
-    ];
-
-    render(all);
-    $id('btn').disabled    = false;
-    $id('btn').textContent = 'Rechercher';
+// ── Filtre langue ─────────────────────────────────────────────────────────────
+document.querySelectorAll('.lang-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    activeLang = btn.dataset.lang;
+    document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderFiltered();
   });
+});
 
-  /* ── Gutenberg via Gutendex ──────────────────────────────── */
-  async function fetchGutenberg(title, author) {
-    // Utilise le nom complet si connu (évite les faux positifs)
-    const fullAuthor = author ? (FULL_NAMES[author.toLowerCase().trim()] || author) : '';
-    const q = [title, fullAuthor].filter(Boolean).join(' ');
-    const r = await fetch(`https://gutendex.com/books/?search=${encodeURIComponent(q)}`);
-    const d = await r.json();
-    return d.results.slice(0, 6).flatMap(b => {
-      const epub = b.formats['application/epub+zip'];
-      if (!epub) return [];
-      return [{
-        title:  b.title,
-        author: b.authors.map(a => a.name).join(', '),
-        url:    epub,
-        format: 'ePub',
-        source: 'Gutenberg',
-        lang:   b.languages.includes('fr') ? 'FR' : (b.languages[0] || '').toUpperCase(),
-        cover:  b.formats['image/jpeg'] || null,
-        cta:    'Ouvrir dans Apple Books',
-        grey:   false,
-      }];
-    });
+function renderFiltered() {
+  const list = activeLang ? allResults.filter(b => b.lang === activeLang) : allResults;
+  render(list);
+}
+
+// ── Recherche ─────────────────────────────────────────────────────────────────
+$id('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const title  = $id('title').value.trim();
+  const author = $id('author').value.trim();
+  if (!title && !author) return;
+
+  $id('btn').disabled = true; $id('btn').textContent = 'Recherche…';
+  $id('langBar').style.display = 'none';
+  $id('results').innerHTML = '<div class="loading"><div class="spinner"></div><p>Recherche sur 6 bibliothèques…</p></div>';
+
+  const settled = await Promise.allSettled([
+    fetchGutenberg(title, author),
+    fetchOpenLibrary(title, author),
+    fetchUQAM(author, title),
+    fetchGallica(title, author),
+    fetchStandardEbooks(author, title),
+    fetchFeedbooks(title, author),
+  ]);
+
+  allResults = settled.flatMap(r => r.status === 'fulfilled' ? r.value : []);
+  activeLang = '';
+  document.querySelectorAll('.lang-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.lang === '');
+  });
+  $id('langBar').style.display = 'flex';
+  renderFiltered();
+
+  $id('btn').disabled = false; $id('btn').textContent = 'Rechercher';
+});
+
+// ── 1. Gutenberg (Gutendex) ───────────────────────────────────────────────────
+async function fetchGutenberg(title, author) {
+  const q = [title, fullName(author)].filter(Boolean).join(' ');
+  const r = await fetch(`https://gutendex.com/books/?search=${encodeURIComponent(q)}`);
+  const d = await r.json();
+  return d.results.slice(0,6).flatMap(b => {
+    const epub = b.formats['application/epub+zip'];
+    if (!epub) return [];
+    return [{
+      title: b.title, author: b.authors.map(a=>a.name).join(', '),
+      url: epub, format:'ePub', source:'Gutenberg',
+      lang: b.languages.includes('fr')?'FR':(b.languages[0]||'').toUpperCase(),
+      cover: b.formats['image/jpeg']||null,
+      cta:'Ouvrir dans Apple Books', grey:false,
+    }];
+  });
+}
+
+// ── 2. Open Library ───────────────────────────────────────────────────────────
+async function fetchOpenLibrary(title, author) {
+  const p = new URLSearchParams();
+  if (title)  p.set('title', title);
+  if (author) p.set('author', author);
+  p.set('has_fulltext','true'); p.set('limit','8');
+  const r = await fetch(`https://openlibrary.org/search.json?${p}`);
+  const d = await r.json();
+  return d.docs.filter(b=>b.ia && b.ebook_access==='public').slice(0,3).map(b=>({
+    title: b.title, author:(b.author_name||[]).join(', '),
+    url:`https://archive.org/details/${b.ia[0]}`, format:'ePub/PDF',
+    source:'Open Library', lang:b.language?(b.language[0]||'').toUpperCase():'',
+    cover:b.cover_i?`https://covers.openlibrary.org/b/id/${b.cover_i}-M.jpg`:null,
+    cta:'Voir sur Open Library', grey:true,
+  }));
+}
+
+// ── 3. UQAM (serveur Vercel) ──────────────────────────────────────────────────
+async function fetchUQAM(author, title) {
+  if (!author) return [];
+  const r = await fetch(`/api/search?${new URLSearchParams({author, title:title||''})}`);
+  if (!r.ok) return [];
+  return r.json();
+}
+
+// ── 4. Gallica BnF (navigateur) ───────────────────────────────────────────────
+async function fetchGallica(title, author) {
+  const fa = fullName(author);
+  const parts = [];
+  if (fa) fa.split(' ').forEach(w => parts.push(`dc.creator all "${w}"`));
+  if (title) parts.push(`dc.title all "${title}"`);
+  if (!parts.length) return [];
+  parts.push('dc.type all "monographie"');
+
+  const query = parts.join(' and ');
+  const url = `https://gallica.bnf.fr/SRU?` + new URLSearchParams({
+    operation:'searchRetrieve', version:'1.2',
+    query, maximumRecords:5, collapsing:'true',
+  });
+  const r = await fetch(url);
+  if (!r.ok) return [];
+  const text = await r.text();
+  const xml  = new DOMParser().parseFromString(text, 'text/xml');
+
+  const DC  = 'http://purl.org/dc/elements/1.1/';
+  const SRW = 'http://www.loc.gov/zing/srw/';
+  const OAI = 'http://www.openarchives.org/OAI/2.0/oai_dc/';
+
+  return [...xml.getElementsByTagNameNS(SRW,'record')].slice(0,5).flatMap(rec => {
+    const dc = rec.getElementsByTagNameNS(OAI,'dc')[0];
+    if (!dc) return [];
+    const tEls  = dc.getElementsByTagNameNS(DC,'title');
+    const idEls = dc.getElementsByTagNameNS(DC,'identifier');
+    const crEls = dc.getElementsByTagNameNS(DC,'creator');
+    if (!tEls.length || !idEls.length) return [];
+    const ark = idEls[0].textContent.trim();
+    if (!ark) return [];
+    const docUrl = ark.startsWith('ark:') ? `https://gallica.bnf.fr/${ark}` : ark;
+    return [{
+      title: tEls[0].textContent,
+      author: crEls.length ? crEls[0].textContent : fa,
+      url: docUrl, format:'PDF/ePub', source:'Gallica (BnF)', lang:'FR',
+      cta:'Voir sur Gallica', grey:true, cover:null,
+    }];
+  });
+}
+
+// ── 5. Standard Ebooks (OPDS navigateur) ─────────────────────────────────────
+async function fetchStandardEbooks(author, title) {
+  const fa   = fullName(author);
+  const slug = norm(fa).replace(/[^a-z\s]/g,'').trim().split(/\s+/).join('-');
+  if (!slug) return [];
+
+  // Essai avec slug normal et inversé (prenom-nom / nom-prenom)
+  const parts  = slug.split('-');
+  const slugs  = [slug, parts.length >= 2 ? [...parts].reverse().join('-') : null].filter(Boolean);
+
+  for (const s of slugs) {
+    try {
+      const r = await fetch(`https://standardebooks.org/feeds/opds/authors/${s}`);
+      if (!r.ok) continue;
+      const text = await r.text();
+      const xml  = new DOMParser().parseFromString(text, 'text/xml');
+      const ATOM = 'http://www.w3.org/2005/Atom';
+      const titleWords = title ? norm(title).split(' ').filter(w=>w.length>3) : [];
+
+      const results = [];
+      for (const entry of xml.getElementsByTagNameNS(ATOM,'entry')) {
+        const tEl = entry.getElementsByTagNameNS(ATOM,'title')[0];
+        if (!tEl) continue;
+        const bookTitle = tEl.textContent;
+        if (titleWords.length && !titleWords.some(w => norm(bookTitle).includes(w))) continue;
+
+        let epubUrl = null;
+        for (const link of entry.getElementsByTagNameNS(ATOM,'link')) {
+          if ((link.getAttribute('type')||'').includes('epub')) {
+            const href = link.getAttribute('href')||'';
+            epubUrl = href.startsWith('http') ? href : `https://standardebooks.org${href}`;
+            break;
+          }
+        }
+        if (!epubUrl) continue;
+        results.push({
+          title:bookTitle, author:fa||author,
+          url:epubUrl, format:'ePub', source:'Standard Ebooks', lang:'EN',
+          cta:'Ouvrir dans Apple Books', grey:false, cover:null,
+        });
+      }
+      if (results.length) return results.slice(0,5);
+    } catch(e) { continue; }
   }
+  return [];
+}
 
-  /* ── UQAM (via notre API Vercel) ─────────────────────────── */
-  // UQAM + Gallica + Standard Ebooks + Feedbooks (tous via l'API serveur)
-  async function fetchServer(author, title) {
-    if (!author) return [];
-    const p = new URLSearchParams({ author, title: title || '' });
-    const r = await fetch(`/api/search?${p}`);
+// ── 6. Feedbooks (OPDS navigateur) ───────────────────────────────────────────
+async function fetchFeedbooks(title, author) {
+  const q = [fullName(author), title].filter(Boolean).join(' ');
+  if (!q) return [];
+  try {
+    const r = await fetch(`https://catalog.feedbooks.com/publicdomain/search.atom?${new URLSearchParams({query:q})}`);
     if (!r.ok) return [];
-    return r.json();
-  }
-
-  /* ── Open Library ────────────────────────────────────────── */
-  async function fetchOpenLibrary(title, author) {
-    const p = new URLSearchParams();
-    if (title)  p.set('title', title);
-    if (author) p.set('author', author);
-    p.set('has_fulltext', 'true');
-    p.set('limit', '8');
-    const r = await fetch(`https://openlibrary.org/search.json?${p}`);
-    const d = await r.json();
-    return d.docs
-      .filter(b => b.ia && b.ebook_access === 'public')
-      .slice(0, 3)
-      .map(b => ({
-        title:  b.title,
-        author: (b.author_name || []).join(', '),
-        url:    `https://archive.org/details/${b.ia[0]}`,
-        format: 'ePub/PDF',
-        source: 'Open Library',
-        lang:   b.language ? (b.language[0] || '').toUpperCase() : '',
-        cover:  b.cover_i ? `https://covers.openlibrary.org/b/id/${b.cover_i}-M.jpg` : null,
-        cta:    'Voir sur Open Library',
-        grey:   true,
-      }));
-  }
-
-  /* ── Rendu ───────────────────────────────────────────────── */
-  function render(books) {
-    if (!books.length) {
-      $id('results').innerHTML = `
-        <div class="empty">
-          Aucun résultat trouvé.<br>
-          <span style="font-size:13px">Essaie en anglais ou sans accent.</span>
-        </div>`;
-      return;
+    const text = await r.text();
+    const xml  = new DOMParser().parseFromString(text, 'text/xml');
+    const ATOM = 'http://www.w3.org/2005/Atom';
+    const DC   = 'http://purl.org/dc/terms/';
+    const results = [];
+    for (const entry of xml.getElementsByTagNameNS(ATOM,'entry')) {
+      const tEl = entry.getElementsByTagNameNS(ATOM,'title')[0];
+      if (!tEl || !tEl.textContent) continue;
+      const aEl = entry.querySelector('author name') || entry.getElementsByTagNameNS(ATOM,'name')[0];
+      let epubUrl = null;
+      for (const link of entry.getElementsByTagNameNS(ATOM,'link')) {
+        if ((link.getAttribute('type')||'').includes('epub')) {
+          epubUrl = link.getAttribute('href'); break;
+        }
+      }
+      if (!epubUrl) continue;
+      const langEl = entry.getElementsByTagNameNS(DC,'language')[0];
+      const lang   = langEl ? langEl.textContent.toUpperCase() : '';
+      results.push({
+        title:tEl.textContent, author:aEl?aEl.textContent:fullName(author)||author,
+        url:epubUrl, format:'ePub', source:'Feedbooks',
+        lang: lang||'FR', cta:'Ouvrir dans Apple Books', grey:false, cover:null,
+      });
     }
+    return results.slice(0,5);
+  } catch(e) { return []; }
+}
 
-    const sourceTag = {
-      'Gutenberg':      'tag-gutenberg',
-      'Open Library':   'tag-openlibrary',
-      'UQAM':           'tag-uqam',
-      'Gallica (BnF)':  'tag-gallica',
-      'Standard Ebooks':'tag-standard',
-      'Feedbooks':      'tag-feedbooks',
-    };
-    const fmtTag    = { ePub: 'tag-epub', PDF: 'tag-pdf', 'ePub/PDF': 'tag-mixed' };
-
-    const cards = books.map(b => {
-      const cover = b.cover
-        ? `<img class="cover" src="${esc(b.cover)}" alt="" loading="lazy" onerror="this.outerHTML='<div class=cover-ph>📖</div>'">`
-        : `<div class="cover-ph">📖</div>`;
-      const langTag = b.lang ? `<span class="tag tag-lang">${esc(b.lang)}</span>` : '';
-
-      return `
-        <div class="card">
-          ${cover}
-          <div class="card-body">
-            <div class="card-title">${esc(b.title)}</div>
-            ${b.author ? `<div class="card-author">${esc(b.author)}</div>` : ''}
-            <div class="tags">
-              <span class="tag ${sourceTag[b.source] || ''}">${esc(b.source)}</span>
-              <span class="tag ${fmtTag[b.format]   || ''}">${esc(b.format)}</span>
-              ${langTag}
-            </div>
-            <a class="btn-dl ${b.grey ? 'btn-dl-grey' : ''}"
-               href="${esc(b.url)}" target="_blank" rel="noopener">${esc(b.cta)}</a>
-          </div>
-        </div>`;
-    }).join('');
-
-    $id('results').innerHTML =
-      `<div class="section-label">${books.length} résultat${books.length > 1 ? 's' : ''}</div>` + cards;
+// ── Rendu ─────────────────────────────────────────────────────────────────────
+function render(books) {
+  if (!books.length) {
+    $id('results').innerHTML = `<div class="empty">Aucun résultat.<br><span style="font-size:13px">Essaie en anglais, sans accent, ou juste le nom de famille.</span></div>`;
+    return;
   }
+  const srcTag = {
+    'Gutenberg':'tag-gutenberg','Open Library':'tag-openlibrary','UQAM':'tag-uqam',
+    'Gallica (BnF)':'tag-gallica','Standard Ebooks':'tag-standard','Feedbooks':'tag-feedbooks',
+  };
+  const fmtTag = {ePub:'tag-epub',PDF:'tag-pdf','ePub/PDF':'tag-mixed','PDF/ePub':'tag-mixed'};
 
-  function esc(s) {
-    return (s || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
+  const html = books.map(b => {
+    const cover = b.cover
+      ? `<img class="cover" src="${esc(b.cover)}" alt="" loading="lazy" onerror="this.outerHTML='<div class=cover-ph>📖</div>'">`
+      : `<div class="cover-ph">📖</div>`;
+    return `<div class="card">
+      ${cover}
+      <div class="card-body">
+        <div class="card-title">${esc(b.title)}</div>
+        ${b.author?`<div class="card-author">${esc(b.author)}</div>`:''}
+        <div class="tags">
+          <span class="tag ${srcTag[b.source]||''}">${esc(b.source)}</span>
+          <span class="tag ${fmtTag[b.format]||''}">${esc(b.format)}</span>
+          ${b.lang?`<span class="tag tag-lang">${esc(b.lang)}</span>`:''}
+        </div>
+        <a class="btn-dl ${b.grey?'btn-dl-grey':''}" href="${esc(b.url)}" target="_blank" rel="noopener">${esc(b.cta)}</a>
+      </div>
+    </div>`;
+  }).join('');
+
+  $id('results').innerHTML =
+    `<div class="section-label">${books.length} résultat${books.length>1?'s':''}</div>` + html;
+}
+
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 </script>
 </body>
 </html>

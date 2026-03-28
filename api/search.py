@@ -1,18 +1,18 @@
+"""
+Scraper UQAM - stdlib uniquement (pas de requests ni beautifulsoup4).
+Toutes les autres sources sont gérées côté client (index.html).
+"""
 from http.server import BaseHTTPRequestHandler
 import json
 import urllib.parse
+import urllib.request
 import unicodedata
-import xml.etree.ElementTree as ET
+from html.parser import HTMLParser
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-try:
-    import requests
-    from bs4 import BeautifulSoup
-    HAS_DEPS = True
-except ImportError:
-    HAS_DEPS = False
+UQAM_BASE = "https://classiques.uqam.ca/classiques/"
+UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 
-# Map des auteurs connus sur UQAM
 AUTHOR_MAP = {
     "camus":                  "camus_albert",
     "albert camus":           "camus_albert",
@@ -35,15 +35,12 @@ AUTHOR_MAP = {
     "charles baudelaire":     "baudelaire_charles",
     "moliere":                "moliere",
     "racine":                 "racine_jean",
-    "jean racine":            "racine_jean",
     "voltaire":               "voltaire",
     "rousseau":               "rousseau_jj",
     "jean-jacques rousseau":  "rousseau_jj",
     "montaigne":              "montaigne",
     "pascal":                 "pascal_blaise",
-    "blaise pascal":          "pascal_blaise",
     "descartes":              "descartes_rene",
-    "rene descartes":         "descartes_rene",
     "kafka":                  "kafka_franz",
     "franz kafka":            "kafka_franz",
     "orwell":                 "orwell_george",
@@ -51,19 +48,14 @@ AUTHOR_MAP = {
     "dostoievski":            "dostoievski_fedor",
     "dostoevsky":             "dostoievski_fedor",
     "dostoievsky":            "dostoievski_fedor",
-    "fedor dostoievski":      "dostoievski_fedor",
     "freud":                  "freud_sigmund",
     "sigmund freud":          "freud_sigmund",
     "nietzsche":              "nietzsche_friedrich",
-    "friedrich nietzsche":    "nietzsche_friedrich",
     "durkheim":               "durkheim_emile",
-    "emile durkheim":         "durkheim_emile",
     "marx":                   "marx_karl",
     "karl marx":              "marx_karl",
     "weber":                  "weber_max",
-    "max weber":              "weber_max",
     "bourdieu":               "bourdieu_pierre",
-    "pierre bourdieu":        "bourdieu_pierre",
     "tocqueville":            "tocqueville_alexis_de",
     "machiavel":              "machiavel",
     "montesquieu":            "montesquieu",
@@ -71,45 +63,7 @@ AUTHOR_MAP = {
     "aristote":               "aristote",
     "hegel":                  "hegel_georg_wilhelm_friedrich",
     "kant":                   "kant_emmanuel",
-    "emmanuel kant":          "kant_emmanuel",
 }
-
-UQAM_BASE = "https://classiques.uqam.ca/classiques/"
-HEADERS   = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
-
-# Noms complets pour éviter les faux positifs sur les moteurs de recherche
-FULL_NAMES = {
-    "camus":        "albert camus",
-    "kafka":        "franz kafka",
-    "orwell":       "george orwell",
-    "sartre":       "jean-paul sartre",
-    "dostoievski":  "fyodor dostoevsky",
-    "dostoevsky":   "fyodor dostoevsky",
-    "hugo":         "victor hugo",
-    "zola":         "emile zola",
-    "balzac":       "honore de balzac",
-    "flaubert":     "gustave flaubert",
-    "proust":       "marcel proust",
-    "baudelaire":   "charles baudelaire",
-    "nietzsche":    "friedrich nietzsche",
-    "freud":        "sigmund freud",
-    "marx":         "karl marx",
-    "rousseau":     "jean-jacques rousseau",
-    "platon":       "platon",
-    "aristote":     "aristote",
-    "voltaire":     "voltaire",
-    "moliere":      "moliere",
-    "shakespeare":  "william shakespeare",
-    "tolstoi":      "leo tolstoy",
-    "tolstoy":      "leo tolstoy",
-    "dickens":      "charles dickens",
-    "hugo":         "victor hugo",
-}
-
-def expand_author(author: str) -> str:
-    """Retourne le nom complet si l'auteur est un nom de famille connu."""
-    n = normalize(author)
-    return FULL_NAMES.get(n, author)
 
 
 def normalize(s: str) -> str:
@@ -119,8 +73,6 @@ def normalize(s: str) -> str:
         if unicodedata.category(c) != "Mn"
     )
 
-
-# ── 1. UQAM (Québec) ──────────────────────────────────────────────────────────
 
 def get_uqam_path(author: str) -> str:
     n = normalize(author)
@@ -132,281 +84,125 @@ def get_uqam_path(author: str) -> str:
     parts = n.split()
     if len(parts) >= 2:
         return f"{parts[-1]}_{parts[0]}"
-    return n.replace(" ", "_").replace("-", "_")
+    return n.replace(" ", "_")
 
+
+# ── Parser HTML minimal (stdlib) ──────────────────────────────────────────────
+
+class LinkParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.links = []          # [(href, text)]
+        self._href = None
+        self._buf  = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "a":
+            self._href = None
+            self._buf  = []
+            for name, val in attrs:
+                if name == "href" and val:
+                    self._href = val
+
+    def handle_data(self, data):
+        if self._href is not None:
+            self._buf.append(data)
+
+    def handle_endtag(self, tag):
+        if tag == "a" and self._href is not None:
+            self.links.append((self._href, " ".join(self._buf).strip()))
+            self._href = None
+            self._buf  = []
+
+
+def fetch_links(url: str, timeout: int = 5):
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": UA})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read()
+        ct = resp.headers.get("Content-Type", "")
+        enc = "utf-8"
+        if "charset=" in ct:
+            enc = ct.split("charset=")[-1].strip().split(";")[0]
+        try:
+            html = raw.decode(enc, errors="replace")
+        except Exception:
+            html = raw.decode("latin-1", errors="replace")
+        p = LinkParser()
+        p.feed(html)
+        return p.links
+    except Exception:
+        return []
+
+
+# ── UQAM (2 niveaux) ──────────────────────────────────────────────────────────
 
 def scrape_uqam(author: str, title: str = "") -> list:
-    """UQAM scrape en 2 niveaux : page auteur → pages livres → PDFs."""
-    if not HAS_DEPS:
-        return []
     path     = get_uqam_path(author)
     url      = f"{UQAM_BASE}{path}/{path}.html"
     base_url = f"{UQAM_BASE}{path}/"
 
-    try:
-        r = requests.get(url, timeout=6, headers=HEADERS)
-        if r.status_code != 200:
-            return []
-
-        soup        = BeautifulSoup(r.content, "html.parser")
-        title_words = [normalize(w) for w in title.split() if len(w) > 3] if title else []
-
-        # Niveau 1 : repérer les liens vers les sous-pages de chaque livre
-        book_pages = []
-        for a in soup.find_all("a", href=True):
-            href = a["href"]
-            text = a.get_text(" ", strip=True)
-            # Lien relatif vers un sous-dossier HTML (ex: "l_etranger/l_etranger.html")
-            if (
-                not href.startswith("http")
-                and not href.startswith("/")
-                and not href.startswith("javascript")
-                and "/" in href
-                and href.lower().endswith(".html")
-            ):
-                if title_words and not any(w in normalize(text) for w in title_words):
-                    continue
-                book_pages.append((text or href.split("/")[0], base_url + href))
-
-        if not book_pages:
-            return []
-
-        book_pages = book_pages[:10]
-
-        # Niveau 2 : pour chaque page de livre, trouver le PDF
-        def get_pdf(book_title: str, book_url: str):
-            try:
-                r2 = requests.get(book_url, timeout=4, headers=HEADERS)
-                if r2.status_code != 200:
-                    return None
-                soup2    = BeautifulSoup(r2.content, "html.parser")
-                book_dir = book_url.rsplit("/", 1)[0]
-                for a2 in soup2.find_all("a", href=True):
-                    h = a2["href"]
-                    if not h.lower().endswith(".pdf"):
-                        continue
-                    if h.startswith("http"):
-                        pdf_url = h
-                    elif h.startswith("/"):
-                        pdf_url = f"https://classiques.uqam.ca{h}"
-                    else:
-                        pdf_url = f"{book_dir}/{h}"
-                    return {
-                        "title":  book_title,
-                        "author": author,
-                        "url":    pdf_url,
-                        "format": "PDF",
-                        "source": "UQAM",
-                        "lang":   "FR",
-                        "cta":    "Ouvrir dans Apple Books",
-                        "grey":   False,
-                    }
-                return None
-            except Exception:
-                return None
-
-        results = []
-        with ThreadPoolExecutor(max_workers=5) as ex:
-            futures = [ex.submit(get_pdf, t, u) for t, u in book_pages]
-            try:
-                for future in as_completed(futures, timeout=6):
-                    res = future.result()
-                    if res:
-                        results.append(res)
-            except Exception:
-                pass
-
-        return results[:8]
-
-    except Exception:
+    links = fetch_links(url, timeout=6)
+    if not links:
         return []
 
+    title_words = [normalize(w) for w in title.split() if len(w) > 3] if title else []
 
-# ── 2. Gallica — Bibliothèque nationale de France ─────────────────────────────
-
-def search_gallica(author: str, title: str = "") -> list:
-    if not HAS_DEPS:
-        return []
-    full_author = expand_author(author)
-    parts = []
-    if full_author:
-        parts.append(f'dc.creator adj "{full_author}"')
-    if title:
-        parts.append(f'dc.title adj "{title}"')
-    if not parts:
-        return []
-    query = " and ".join(parts) + ' and dc.type all "monographie"'
-    try:
-        r = requests.get(
-            "https://gallica.bnf.fr/SRU",
-            params={
-                "operation": "searchRetrieve",
-                "version":   "1.2",
-                "query":     query,
-                "maximumRecords": 5,
-                "collapsing": "true",
-            },
-            timeout=7, headers=HEADERS,
-        )
-        if r.status_code != 200:
-            return []
-
-        root = ET.fromstring(r.content)
-        DC  = "http://purl.org/dc/elements/1.1/"
-        OAI = "http://www.openarchives.org/OAI/2.0/oai_dc/"
-        SRW = "http://www.loc.gov/zing/srw/"
-
-        results = []
-        for record in root.iter(f"{{{SRW}}}record"):
-            dc = record.find(f".//{{{OAI}}}dc")
-            if dc is None:
+    # Niveau 1 : sous-pages de livres (liens relatifs HTML avec sous-dossier)
+    book_pages = []
+    for href, text in links:
+        if (
+            not href.startswith("http")
+            and not href.startswith("/")
+            and not href.startswith("javascript")
+            and "/" in href
+            and href.lower().endswith(".html")
+        ):
+            if title_words and not any(w in normalize(text) for w in title_words):
                 continue
-            rec_title = dc.find(f"{{{DC}}}title")
-            rec_id    = dc.find(f"{{{DC}}}identifier")
-            rec_auth  = dc.find(f"{{{DC}}}creator")
-            if rec_title is None or rec_id is None:
-                continue
-            ark = (rec_id.text or "").strip()
-            if not ark:
-                continue
-            doc_url = f"https://gallica.bnf.fr/{ark}" if ark.startswith("ark:") else ark
-            results.append({
-                "title":  rec_title.text or "Sans titre",
-                "author": rec_auth.text if rec_auth is not None else author,
-                "url":    doc_url,
-                "format": "PDF/ePub",
-                "source": "Gallica (BnF)",
-                "lang":   "FR",
-                "cta":    "Voir sur Gallica",
-                "grey":   True,
-            })
-        return results[:5]
-    except Exception:
+            book_pages.append((text or href.split("/")[0], base_url + href))
+
+    if not book_pages:
         return []
 
+    book_pages = book_pages[:10]
 
-# ── 3. Standard Ebooks — classiques haute qualité ─────────────────────────────
-
-def search_standard_ebooks(author: str, title: str = "") -> list:
-    if not HAS_DEPS:
-        return []
-
-    # Slug OPDS : "Franz Kafka" → "franz-kafka"
-    def make_slug(s):
-        n = normalize(s)
-        return "-".join(n.split())
-
-    slug = make_slug(expand_author(author))
-    # Essai avec slug normal, puis inversé (nom prénom → prénom nom)
-    parts = slug.split("-")
-    slugs = [slug]
-    if len(parts) >= 2:
-        slugs.append("-".join(reversed(parts)))
-
-    for s in slugs:
-        url = f"https://standardebooks.org/feeds/opds/authors/{s}"
-        try:
-            r = requests.get(url, timeout=6, headers=HEADERS)
-            if r.status_code != 200:
-                continue
-
-            root = ET.fromstring(r.content)
-            ATOM = "http://www.w3.org/2005/Atom"
-            results = []
-            title_words = [normalize(w) for w in title.split() if len(w) > 3] if title else []
-
-            for entry in root.iter(f"{{{ATOM}}}entry"):
-                t_el = entry.find(f"{{{ATOM}}}title")
-                if t_el is None:
-                    continue
-                book_title = t_el.text or ""
-
-                if title_words and not any(w in normalize(book_title) for w in title_words):
-                    continue
-
-                epub_url = None
-                for link in entry.findall(f"{{{ATOM}}}link"):
-                    if "epub" in link.get("type", ""):
-                        href = link.get("href", "")
-                        if href:
-                            epub_url = href if href.startswith("http") else f"https://standardebooks.org{href}"
-                        break
-
-                if not epub_url:
-                    continue
-
-                results.append({
+    # Niveau 2 : PDF dans chaque sous-page
+    def get_pdf(book_title: str, book_url: str):
+        sub_links = fetch_links(book_url, timeout=4)
+        book_dir  = book_url.rsplit("/", 1)[0]
+        for href, _ in sub_links:
+            if href.lower().endswith(".pdf"):
+                if href.startswith("http"):
+                    pdf_url = href
+                elif href.startswith("/"):
+                    pdf_url = f"https://classiques.uqam.ca{href}"
+                else:
+                    pdf_url = f"{book_dir}/{href}"
+                return {
                     "title":  book_title,
                     "author": author,
-                    "url":    epub_url,
-                    "format": "ePub",
-                    "source": "Standard Ebooks",
-                    "lang":   "EN",
+                    "url":    pdf_url,
+                    "format": "PDF",
+                    "source": "UQAM",
+                    "lang":   "FR",
                     "cta":    "Ouvrir dans Apple Books",
                     "grey":   False,
-                })
+                }
+        return None
 
-            if results:
-                return results[:5]
+    results = []
+    with ThreadPoolExecutor(max_workers=5) as ex:
+        futures = [ex.submit(get_pdf, t, u) for t, u in book_pages]
+        try:
+            for future in as_completed(futures, timeout=7):
+                res = future.result()
+                if res:
+                    results.append(res)
         except Exception:
-            continue
+            pass
 
-    return []
-
-
-# ── 4. Feedbooks — catalogue domaine public ────────────────────────────────────
-
-def search_feedbooks(author: str, title: str = "") -> list:
-    if not HAS_DEPS:
-        return []
-    query = " ".join(filter(None, [expand_author(author), title]))
-    try:
-        r = requests.get(
-            "https://catalog.feedbooks.com/publicdomain/search.atom",
-            params={"query": query},
-            timeout=6, headers=HEADERS,
-        )
-        if r.status_code != 200:
-            return []
-
-        root = ET.fromstring(r.content)
-        ATOM = "http://www.w3.org/2005/Atom"
-        DC   = "http://purl.org/dc/terms/"
-        results = []
-
-        for entry in root.iter(f"{{{ATOM}}}entry"):
-            t_el = entry.find(f"{{{ATOM}}}title")
-            if t_el is None or not t_el.text:
-                continue
-
-            a_el = entry.find(f".//{{{ATOM}}}author/{{{ATOM}}}name")
-
-            epub_url = None
-            for link in entry.findall(f"{{{ATOM}}}link"):
-                if "epub" in link.get("type", ""):
-                    epub_url = link.get("href", "")
-                    break
-
-            if not epub_url:
-                continue
-
-            lang_el = entry.find(f"{{{DC}}}language")
-            lang = (lang_el.text or "").upper() if lang_el is not None else ""
-
-            results.append({
-                "title":  t_el.text,
-                "author": a_el.text if a_el is not None else author,
-                "url":    epub_url,
-                "format": "ePub",
-                "source": "Feedbooks",
-                "lang":   lang or "FR",
-                "cta":    "Ouvrir dans Apple Books",
-                "grey":   False,
-            })
-
-        return results[:5]
-    except Exception:
-        return []
+    return results[:8]
 
 
 # ── Handler Vercel ─────────────────────────────────────────────────────────────
@@ -419,25 +215,7 @@ class handler(BaseHTTPRequestHandler):
         author = params.get("author", [""])[0].strip()
         title  = params.get("title",  [""])[0].strip()
 
-        results = []
-        if author or title:
-            tasks = [
-                (scrape_uqam,            author, title),
-                (search_gallica,         author, title),
-                (search_standard_ebooks, author, title),
-                (search_feedbooks,       author, title),
-            ]
-            # Toutes les sources tournent en parallèle (max 8s total)
-            with ThreadPoolExecutor(max_workers=4) as ex:
-                futures = [ex.submit(fn, a, t) for fn, a, t in tasks]
-                try:
-                    for future in as_completed(futures, timeout=8):
-                        try:
-                            results.extend(future.result())
-                        except Exception:
-                            pass
-                except Exception:
-                    pass
+        results = scrape_uqam(author, title) if author else []
 
         body = json.dumps(results, ensure_ascii=False).encode("utf-8")
         self.send_response(200)
