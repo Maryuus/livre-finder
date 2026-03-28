@@ -77,6 +77,40 @@ AUTHOR_MAP = {
 UQAM_BASE = "https://classiques.uqam.ca/classiques/"
 HEADERS   = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
 
+# Noms complets pour éviter les faux positifs sur les moteurs de recherche
+FULL_NAMES = {
+    "camus":        "albert camus",
+    "kafka":        "franz kafka",
+    "orwell":       "george orwell",
+    "sartre":       "jean-paul sartre",
+    "dostoievski":  "fyodor dostoevsky",
+    "dostoevsky":   "fyodor dostoevsky",
+    "hugo":         "victor hugo",
+    "zola":         "emile zola",
+    "balzac":       "honore de balzac",
+    "flaubert":     "gustave flaubert",
+    "proust":       "marcel proust",
+    "baudelaire":   "charles baudelaire",
+    "nietzsche":    "friedrich nietzsche",
+    "freud":        "sigmund freud",
+    "marx":         "karl marx",
+    "rousseau":     "jean-jacques rousseau",
+    "platon":       "platon",
+    "aristote":     "aristote",
+    "voltaire":     "voltaire",
+    "moliere":      "moliere",
+    "shakespeare":  "william shakespeare",
+    "tolstoi":      "leo tolstoy",
+    "tolstoy":      "leo tolstoy",
+    "dickens":      "charles dickens",
+    "hugo":         "victor hugo",
+}
+
+def expand_author(author: str) -> str:
+    """Retourne le nom complet si l'auteur est un nom de famille connu."""
+    n = normalize(author)
+    return FULL_NAMES.get(n, author)
+
 
 def normalize(s: str) -> str:
     s = s.lower().strip()
@@ -193,9 +227,10 @@ def scrape_uqam(author: str, title: str = "") -> list:
 def search_gallica(author: str, title: str = "") -> list:
     if not HAS_DEPS:
         return []
+    full_author = expand_author(author)
     parts = []
-    if author:
-        parts.append(f'dc.creator adj "{author}"')
+    if full_author:
+        parts.append(f'dc.creator adj "{full_author}"')
     if title:
         parts.append(f'dc.title adj "{title}"')
     if not parts:
@@ -261,7 +296,7 @@ def search_standard_ebooks(author: str, title: str = "") -> list:
         n = normalize(s)
         return "-".join(n.split())
 
-    slug = make_slug(author)
+    slug = make_slug(expand_author(author))
     # Essai avec slug normal, puis inversé (nom prénom → prénom nom)
     parts = slug.split("-")
     slugs = [slug]
@@ -324,7 +359,7 @@ def search_standard_ebooks(author: str, title: str = "") -> list:
 def search_feedbooks(author: str, title: str = "") -> list:
     if not HAS_DEPS:
         return []
-    query = " ".join(filter(None, [author, title]))
+    query = " ".join(filter(None, [expand_author(author), title]))
     try:
         r = requests.get(
             "https://catalog.feedbooks.com/publicdomain/search.atom",
