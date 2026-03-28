@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>LivreFinder</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue: #0071e3;
+      --bg: #f2f2f7;
+      --card: #ffffff;
+      --text: #1c1c1e;
+      --muted: #8e8e93;
+      --border: #e5e5ea;
+      --radius: 13px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: env(safe-area-inset-bottom, 24px);
+    }
+
+    .header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 20px 14px;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+    .header p  { font-size: 13px; color: var(--muted); margin-top: 3px; }
+
+    .search-box {
+      margin: 16px;
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.09);
+    }
+
+    .field { margin-bottom: 10px; }
+    .field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 5px;
+    }
+    .field input {
+      width: 100%;
+      padding: 11px 14px;
+      background: var(--bg);
+      border: 1.5px solid transparent;
+      border-radius: 10px;
+      font-size: 16px;
+      font-family: inherit;
+      color: var(--text);
+      -webkit-appearance: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .field input:focus {
+      outline: none;
+      border-color: var(--blue);
+      background: white;
+    }
+
+    .btn-search {
+      width: 100%;
+      padding: 13px;
+      background: var(--blue);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      -webkit-appearance: none;
+      transition: opacity 0.15s;
+    }
+    .btn-search:active   { opacity: 0.8; }
+    .btn-search:disabled { opacity: 0.5; cursor: default; }
+
+    .results { padding: 0 16px 32px; }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin: 16px 0 10px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+      display: flex;
+      gap: 12px;
+    }
+
+    .cover {
+      width: 56px;
+      height: 78px;
+      border-radius: 6px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: var(--bg);
+    }
+    .cover-ph {
+      width: 56px;
+      height: 78px;
+      border-radius: 6px;
+      background: linear-gradient(145deg, #e5e5ea, #d1d1d6);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .card-body {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .card-title  { font-size: 15px; font-weight: 600; line-height: 1.3; }
+    .card-author { font-size: 13px; color: var(--muted); }
+
+    .tags { display: flex; gap: 5px; flex-wrap: wrap; margin: 4px 0; }
+    .tag  { padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+
+    .tag-epub        { background: #d1fae5; color: #065f46; }
+    .tag-pdf         { background: #fee2e2; color: #991b1b; }
+    .tag-mixed       { background: #f3f4f6; color: #374151; }
+    .tag-gutenberg   { background: #dbeafe; color: #1e40af; }
+    .tag-openlibrary { background: #fef3c7; color: #92400e; }
+    .tag-uqam        { background: #ede9fe; color: #5b21b6; }
+    .tag-lang        { background: var(--bg); color: var(--muted); }
+
+    .btn-dl {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      color: white;
+      background: var(--blue);
+      align-self: flex-start;
+    }
+    .btn-dl-grey { background: #636366; }
+
+    .loading {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--muted);
+    }
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border: 2.5px solid var(--border);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📚 LivreFinder</h1>
+  <p>Gutenberg · UQAM · Open Library</p>
+</div>
+
+<div class="search-box">
+  <form id="form">
+    <div class="field">
+      <label for="title">Titre</label>
+      <input id="title" type="text" placeholder="ex: La Métamorphose" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="field">
+      <label for="author">Auteur</label>
+      <input id="author" type="text" placeholder="ex: Franz Kafka" autocomplete="off" spellcheck="false">
+    </div>
+    <button type="submit" class="btn-search" id="btn">Rechercher</button>
+  </form>
+</div>
+
+<div class="results" id="results"></div>
+
+<script>
+  const $id = id => document.getElementById(id);
+
+  $id('form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const title  = $id('title').value.trim();
+    const author = $id('author').value.trim();
+    if (!title && !author) return;
+
+    $id('btn').disabled    = true;
+    $id('btn').textContent = 'Recherche…';
+    $id('results').innerHTML = `
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>Recherche sur Gutenberg, UQAM et Open Library…</p>
+      </div>`;
+
+    const [g, u, o] = await Promise.allSettled([
+      fetchGutenberg(title, author),
+      fetchUQAM(author, title),
+      fetchOpenLibrary(title, author),
+    ]);
+
+    const all = [
+      ...(g.status === 'fulfilled' ? g.value : []),
+      ...(u.status === 'fulfilled' ? u.value : []),
+      ...(o.status === 'fulfilled' ? o.value : []),
+    ];
+
+    render(all);
+    $id('btn').disabled    = false;
+    $id('btn').textContent = 'Rechercher';
+  });
+
+  /* ── Gutenberg via Gutendex ──────────────────────────────── */
+  async function fetchGutenberg(title, author) {
+    const q = [title, author].filter(Boolean).join(' ');
+    const r = await fetch(`https://gutendex.com/books/?search=${encodeURIComponent(q)}`);
+    const d = await r.json();
+    return d.results.slice(0, 6).flatMap(b => {
+      const epub = b.formats['application/epub+zip'];
+      if (!epub) return [];
+      return [{
+        title:  b.title,
+        author: b.authors.map(a => a.name).join(', '),
+        url:    epub,
+        format: 'ePub',
+        source: 'Gutenberg',
+        lang:   b.languages.includes('fr') ? 'FR' : (b.languages[0] || '').toUpperCase(),
+        cover:  b.formats['image/jpeg'] || null,
+        cta:    'Ouvrir dans Apple Books',
+        grey:   false,
+      }];
+    });
+  }
+
+  /* ── UQAM (via notre API Vercel) ─────────────────────────── */
+  async function fetchUQAM(author, title) {
+    if (!author) return [];
+    const p = new URLSearchParams({ author, title: title || '' });
+    const r = await fetch(`/api/search?${p}`);
+    if (!r.ok) return [];
+    return r.json();
+  }
+
+  /* ── Open Library ────────────────────────────────────────── */
+  async function fetchOpenLibrary(title, author) {
+    const p = new URLSearchParams();
+    if (title)  p.set('title', title);
+    if (author) p.set('author', author);
+    p.set('has_fulltext', 'true');
+    p.set('limit', '8');
+    const r = await fetch(`https://openlibrary.org/search.json?${p}`);
+    const d = await r.json();
+    return d.docs
+      .filter(b => b.ia && b.ebook_access === 'public')
+      .slice(0, 3)
+      .map(b => ({
+        title:  b.title,
+        author: (b.author_name || []).join(', '),
+        url:    `https://archive.org/details/${b.ia[0]}`,
+        format: 'ePub/PDF',
+        source: 'Open Library',
+        lang:   b.language ? (b.language[0] || '').toUpperCase() : '',
+        cover:  b.cover_i ? `https://covers.openlibrary.org/b/id/${b.cover_i}-M.jpg` : null,
+        cta:    'Voir sur Open Library',
+        grey:   true,
+      }));
+  }
+
+  /* ── Rendu ───────────────────────────────────────────────── */
+  function render(books) {
+    if (!books.length) {
+      $id('results').innerHTML = `
+        <div class="empty">
+          Aucun résultat trouvé.<br>
+          <span style="font-size:13px">Essaie en anglais ou sans accent.</span>
+        </div>`;
+      return;
+    }
+
+    const sourceTag = { Gutenberg: 'tag-gutenberg', 'Open Library': 'tag-openlibrary', UQAM: 'tag-uqam' };
+    const fmtTag    = { ePub: 'tag-epub', PDF: 'tag-pdf', 'ePub/PDF': 'tag-mixed' };
+
+    const cards = books.map(b => {
+      const cover = b.cover
+        ? `<img class="cover" src="${esc(b.cover)}" alt="" loading="lazy" onerror="this.outerHTML='<div class=cover-ph>📖</div>'">`
+        : `<div class="cover-ph">📖</div>`;
+      const langTag = b.lang ? `<span class="tag tag-lang">${esc(b.lang)}</span>` : '';
+
+      return `
+        <div class="card">
+          ${cover}
+          <div class="card-body">
+            <div class="card-title">${esc(b.title)}</div>
+            ${b.author ? `<div class="card-author">${esc(b.author)}</div>` : ''}
+            <div class="tags">
+              <span class="tag ${sourceTag[b.source] || ''}">${esc(b.source)}</span>
+              <span class="tag ${fmtTag[b.format]   || ''}">${esc(b.format)}</span>
+              ${langTag}
+            </div>
+            <a class="btn-dl ${b.grey ? 'btn-dl-grey' : ''}"
+               href="${esc(b.url)}" target="_blank" rel="noopener">${esc(b.cta)}</a>
+          </div>
+        </div>`;
+    }).join('');
+
+    $id('results').innerHTML =
+      `<div class="section-label">${books.length} résultat${books.length > 1 ? 's' : ''}</div>` + cards;
+  }
+
+  function esc(s) {
+    return (s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+</script>
+</body>
+</html>
