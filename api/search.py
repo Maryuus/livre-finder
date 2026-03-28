@@ -127,40 +127,38 @@ def search_anna_archive(author: str, title: str = "") -> list:
     À IMPLÉMENTER — voir commentaire ci-dessus.
     Retourne [] tant que non implémenté.
     """
-    # TODO: implémenter la recherche Anna's Archive
-    # Exemple de structure :
-    #
-    # import os
-    # from bs4 import BeautifulSoup
-    # ANNA_URL = os.environ.get("ANNA_ARCHIVE_URL", "https://annas-archive.org")
-    # query = f"{expand(author)} {title}".strip()
-    # url = f"{ANNA_URL}/search?q={urllib.parse.quote(query)}&lang=&content=book_any&ext=epub,pdf,mobi"
-    # html = fetch(url)
-    # soup = BeautifulSoup(html, "html.parser")
-    # results = []
-    # seen = set()
-    # for a in soup.find_all("a", href=True):
-    #     href = a["href"]
-    #     if not href.startswith("/md5/"):
-    #         continue
-    #     md5 = href.split("/md5/")[-1].strip("/")
-    #     if md5 in seen or not md5:
-    #         continue
-    #     seen.add(md5)
-    #     text = a.get_text(" ", strip=True)
-    #     results.append({
-    #         "title":  text or title,
-    #         "author": expand(author),
-    #         "url":    f"https://libgen.rocks/get.php?md5={md5}",
-    #         "format": "ePub",
-    #         "source": "Anna's Archive",
-    #         "lang":   "FR",
-    #         "cta":    "Télécharger",
-    #         "grey":   False,
-    #         "cover":  None,
-    #     })
-    # return results[:10]
-    return []
+    import os
+    from bs4 import BeautifulSoup
+    ANNA_URL = os.environ.get("ANNA_ARCHIVE_URL", "https://annas-archive.org")
+    query = f"{expand(author)} {title}".strip()
+    url = f"{ANNA_URL}/search?q={urllib.parse.quote(query)}&lang=&content=book_any&ext=epub,pdf,mobi"
+    html = fetch(url)
+    if not html:
+        return []
+    soup = BeautifulSoup(html, "html.parser")
+    results = []
+    seen = set()
+    for a in soup.find_all("a", href=True):
+        href = a["href"]
+        if not href.startswith("/md5/"):
+            continue
+        md5 = href.split("/md5/")[-1].strip("/")
+        if md5 in seen or not md5:
+            continue
+        seen.add(md5)
+        text = a.get_text(" ", strip=True)
+        results.append({
+            "title":  text or title,
+            "author": expand(author),
+            "url":    f"https://libgen.rocks/get.php?md5={md5}",
+            "format": "ePub",
+            "source": "Anna's Archive",
+            "lang":   "FR",
+            "cta":    "Télécharger",
+            "grey":   False,
+            "cover":  None,
+        })
+    return results[:10]
 
 
 # ══════════════════════════════════════════════════════════════════════════════
