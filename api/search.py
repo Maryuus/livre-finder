@@ -87,73 +87,59 @@ def fetch(url: str, timeout: int = 7) -> bytes:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  SOURCE 1 — ANNA'S ARCHIVE  (à implémenter)
+#  SOURCE 1 — LIBGEN
+#  Des millions de livres dans toutes les langues et formats
 # ══════════════════════════════════════════════════════════════════════════════
-#
-#  Anna's Archive indexe des millions de livres dans toutes les langues.
-#  Le dépôt https://github.com/Zoeille/maman-books montre exactement comment
-#  l'interroger (voir anna_archive.py).
-#
-#  Pour implémenter :
-#
-#  1. Recherche :
-#     GET {ANNA_URL}/search?q={titre}+{auteur}&lang=&content=book_any&ext=epub,pdf,mobi
-#     Parser les <a href="/md5/..."> avec BeautifulSoup pour extraire titre + md5
-#
-#  2. Téléchargement :
-#     Scraper {ANNA_URL}/md5/{md5} pour récupérer les liens miroirs
-#     Fallback : https://libgen.rocks/get.php?md5={md5}
-#
-#  3. Format de retour attendu par l'UI (un dict par résultat) :
-#     {
-#         "title":  "Le Procès",
-#         "author": "Franz Kafka",
-#         "url":    "https://libgen.rocks/get.php?md5=abc123",
-#         "format": "ePub",           # ou "PDF", "MOBI"
-#         "source": "Anna's Archive",
-#         "lang":   "FR",
-#         "cta":    "Télécharger",
-#         "grey":   False,
-#         "cover":  None,
-#     }
-#
-#  Variables d'environnement recommandées :
-#     ANNA_ARCHIVE_URL=https://annas-archive.org  (ou instance miroir)
-#
-# ──────────────────────────────────────────────────────────────────────────────
 
-def search_anna_archive(author: str, title: str = "") -> list:
-    """
-    À IMPLÉMENTER — voir commentaire ci-dessus.
-    Retourne [] tant que non implémenté.
-    """
-    import os
+def search_libgen(author: str, title: str = "") -> list:
     from bs4 import BeautifulSoup
-    ANNA_URL = os.environ.get("ANNA_ARCHIVE_URL", "https://annas-archive.org")
     query = f"{expand(author)} {title}".strip()
-    url = f"{ANNA_URL}/search?q={urllib.parse.quote(query)}&lang=&content=book_any&ext=epub,pdf,mobi"
-    html = fetch(url)
-    if not html:
+    if not query:
         return []
-    soup = BeautifulSoup(html, "html.parser")
+    url = ("https://libgen.rs/search.php?" +
+           urllib.parse.urlencode({"req": query, "res": 25,
+                                   "view": "simple", "phrase": 1, "column": "def"}))
+    raw = fetch(url, timeout=8)
+    if not raw:
+        return []
+    soup = BeautifulSoup(raw, "html.parser")
+
+    # Le tableau de résultats est reconnaissable par son header
+    results_table = None
+    for t in soup.find_all("table"):
+        header = t.find("tr")
+        if header and any("Author" in th.get_text() for th in header.find_all("th")):
+            results_table = t
+            break
+    if not results_table:
+        return []
+
     results = []
-    seen = set()
-    for a in soup.find_all("a", href=True):
-        href = a["href"]
-        if not href.startswith("/md5/"):
+    for row in results_table.find_all("tr")[1:]:
+        cols = row.find_all("td")
+        if len(cols) < 10:
             continue
-        md5 = href.split("/md5/")[-1].strip("/")
-        if md5 in seen or not md5:
+        author_text = cols[1].get_text(strip=True)
+        title_links = cols[2].find_all("a")
+        title_text  = title_links[0].get_text(strip=True) if title_links else cols[2].get_text(strip=True)
+        lang = cols[6].get_text(strip=True)[:2].upper()
+        ext  = cols[8].get_text(strip=True).lower()
+        # MD5 extrait du lien miroir (ex: http://library.lol/main/MD5)
+        mirror_a = cols[9].find("a")
+        if not mirror_a:
             continue
-        seen.add(md5)
-        text = a.get_text(" ", strip=True)
+        href = mirror_a.get("href", "")
+        md5  = href.rstrip("/").split("/")[-1]
+        if not md5 or len(md5) != 32:
+            continue
+        fmt = "ePub" if "epub" in ext else ("PDF" if "pdf" in ext else ext.upper() or "ePub")
         results.append({
-            "title":  text or title,
-            "author": expand(author),
+            "title":  title_text,
+            "author": author_text,
             "url":    f"https://libgen.rocks/get.php?md5={md5}",
-            "format": "ePub",
-            "source": "Anna's Archive",
-            "lang":   "FR",
+            "format": fmt,
+            "source": "Libgen",
+            "lang":   lang or "EN",
             "cta":    "Télécharger",
             "grey":   False,
             "cover":  None,
@@ -289,7 +275,7 @@ def search_standard_ebooks(author: str, title: str = "") -> list:
 # ══════════════════════════════════════════════════════════════════════════════
 
 SOURCES = [
-    search_anna_archive,   # ← à implémenter (retourne [] pour l'instant)
+    search_libgen,
     search_gutenberg,
     search_standard_ebooks,
 ]

@@ -83,12 +83,29 @@
     .tag-epub        { background: #d1fae5; color: #065f46; }
     .tag-pdf         { background: #fee2e2; color: #991b1b; }
     .tag-mixed       { background: #f3f4f6; color: #374151; }
-    .tag-anna        { background: #fce7f3; color: #9d174d; }
+    .tag-libgen      { background: #fce7f3; color: #9d174d; }
     .tag-gutenberg   { background: #dbeafe; color: #1e40af; }
     .tag-openlibrary { background: #fef3c7; color: #92400e; }
     .tag-gallica     { background: #fdf2f8; color: #86198f; }
     .tag-standard    { background: #f0fdfa; color: #0f766e; }
     .tag-lang        { background: var(--bg); color: var(--muted); }
+    .fallback-bar {
+      margin: 16px 0 4px; padding: 14px;
+      background: var(--card); border-radius: var(--radius);
+      box-shadow: 0 1px 3px rgba(0,0,0,.07);
+    }
+    .fallback-bar p {
+      font-size: 12px; color: var(--muted); margin-bottom: 10px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .6px;
+    }
+    .fallback-links { display: flex; gap: 8px; flex-wrap: wrap; }
+    .fallback-link {
+      flex: 1; min-width: 120px; padding: 10px 8px; border-radius: 10px;
+      border: 1.5px solid var(--border); background: var(--bg);
+      font-size: 13px; font-weight: 600; color: var(--text);
+      text-decoration: none; text-align: center; transition: border-color .15s;
+    }
+    .fallback-link:active { border-color: var(--blue); }
     .btn-dl {
       display: inline-block; margin-top: 6px; padding: 8px 14px;
       border-radius: 8px; font-size: 13px; font-weight: 600;
@@ -109,7 +126,7 @@
 
 <div class="header">
   <h1>📚 LivreFinder</h1>
-  <p>Anna's Archive · Gutenberg · Standard Ebooks · Open Library · Gallica</p>
+  <p>Libgen · Gutenberg · Standard Ebooks · Open Library · Gallica</p>
 </div>
 
 <div class="search-box">
@@ -133,6 +150,7 @@
 </div>
 
 <div class="results" id="results"></div>
+<div style="padding: 0 16px 32px" id="fallback"></div>
 
 <script>
 const $id = id => document.getElementById(id);
@@ -178,6 +196,7 @@ $id('form').addEventListener('submit', async e => {
 
   $id('btn').disabled = true; $id('btn').textContent = 'Recherche…';
   $id('langBar').style.display = 'none';
+  $id('fallback').innerHTML = '';
   $id('results').innerHTML = '<div class="loading"><div class="spinner"></div><p>Recherche sur 5 bibliothèques…</p></div>';
 
   const settled = await Promise.allSettled([
@@ -207,11 +226,27 @@ $id('form').addEventListener('submit', async e => {
   });
   $id('langBar').style.display = 'flex';
   renderFiltered();
+  renderFallback(title, author);
 
   $id('btn').disabled = false; $id('btn').textContent = 'Rechercher';
 });
 
-// ── 1. Serveur Vercel (Anna's Archive + Gutenberg + Standard Ebooks) ──────────
+// ── Liens de secours ──────────────────────────────────────────────────────────
+function renderFallback(title, author) {
+  const q = encodeURIComponent([fullName(author) || author, title].filter(Boolean).join(' '));
+  if (!q) return;
+  $id('fallback').innerHTML = `
+    <div class="fallback-bar">
+      <p>Chercher directement sur</p>
+      <div class="fallback-links">
+        <a class="fallback-link" href="https://annas-archive.org/search?q=${q}" target="_blank" rel="noopener">Anna's Archive</a>
+        <a class="fallback-link" href="https://libgen.rs/search.php?req=${q}&column=def" target="_blank" rel="noopener">Libgen</a>
+        <a class="fallback-link" href="https://z-lib.id/s/${q}" target="_blank" rel="noopener">Z-Library</a>
+      </div>
+    </div>`;
+}
+
+// ── 1. Serveur Vercel (Libgen + Gutenberg + Standard Ebooks) ──────────────────
 async function fetchServer(author, title) {
   if (!author && !title) return [];
   const r = await fetch(`/api/search?${new URLSearchParams({author: author||'', title: title||''})}`);
@@ -288,7 +323,7 @@ function render(books) {
     return;
   }
   const srcTag = {
-    "Anna's Archive": 'tag-anna',
+    'Libgen':         'tag-libgen',
     'Gutenberg':      'tag-gutenberg',
     'Standard Ebooks':'tag-standard',
     'Open Library':   'tag-openlibrary',
