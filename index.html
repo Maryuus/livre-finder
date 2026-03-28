@@ -113,7 +113,7 @@
 
 <div class="header">
   <h1>📚 LivreFinder</h1>
-  <p>Gutenberg · Open Library · UQAM · Gallica · Standard Ebooks · Feedbooks</p>
+  <p>Gutenberg · Open Library · UQAM · Gallica · Standard Ebooks</p>
 </div>
 
 <div class="search-box">
@@ -191,10 +191,22 @@ $id('form').addEventListener('submit', async e => {
     fetchUQAM(author, title),
     fetchGallica(title, author),
     fetchStandardEbooks(author, title),
-    fetchFeedbooks(title, author),
   ]);
 
   allResults = settled.flatMap(r => r.status === 'fulfilled' ? r.value : []);
+
+  // Toujours ajouter un lien de recherche Gallica en bas
+  if (title || author) {
+    const fa = fullName(author);
+    const q  = [fa || author, title].filter(Boolean).join(' ');
+    allResults.push({
+      title:  `Chercher sur Gallica (BnF)`,
+      author: 'Bibliothèque nationale de France — millions de livres FR',
+      url:    `https://gallica.bnf.fr/services/engine/search/sru?operation=searchRetrieve&query=${encodeURIComponent(`dc.creator all "${fa||author}" and dc.type all "monographie"`)}`,
+      format: 'PDF/ePub', source: 'Gallica (BnF)', lang: 'FR',
+      cta: 'Ouvrir Gallica →', grey: true, cover: null,
+    });
+  }
   activeLang = '';
   document.querySelectorAll('.lang-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.lang === '');

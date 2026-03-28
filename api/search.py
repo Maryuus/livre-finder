@@ -1,6 +1,6 @@
 """
-Scraper UQAM - stdlib uniquement (pas de requests ni beautifulsoup4).
-Toutes les autres sources sont gérées côté client (index.html).
+Scraper UQAM — stdlib uniquement.
+Stratégie : page auteur → liens relatifs HTML → remplace .html par .pdf directement.
 """
 from http.server import BaseHTTPRequestHandler
 import json
@@ -8,62 +8,70 @@ import urllib.parse
 import urllib.request
 import unicodedata
 from html.parser import HTMLParser
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 UQAM_BASE = "https://classiques.uqam.ca/classiques/"
-UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+UA = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/120.0.0.0 Safari/537.36"
+)
 
 AUTHOR_MAP = {
-    "camus":                  "camus_albert",
-    "albert camus":           "camus_albert",
-    "sartre":                 "sartre_jean-paul",
-    "jean paul sartre":       "sartre_jean-paul",
-    "jean-paul sartre":       "sartre_jean-paul",
-    "simone de beauvoir":     "beauvoir_simone_de",
-    "beauvoir":               "beauvoir_simone_de",
-    "hugo":                   "hugo_victor",
-    "victor hugo":            "hugo_victor",
-    "zola":                   "zola_emile",
-    "emile zola":             "zola_emile",
-    "balzac":                 "balzac_honore_de",
-    "honore de balzac":       "balzac_honore_de",
-    "flaubert":               "flaubert_gustave",
-    "gustave flaubert":       "flaubert_gustave",
-    "proust":                 "proust_marcel",
-    "marcel proust":          "proust_marcel",
-    "baudelaire":             "baudelaire_charles",
-    "charles baudelaire":     "baudelaire_charles",
-    "moliere":                "moliere",
-    "racine":                 "racine_jean",
-    "voltaire":               "voltaire",
-    "rousseau":               "rousseau_jj",
-    "jean-jacques rousseau":  "rousseau_jj",
-    "montaigne":              "montaigne",
-    "pascal":                 "pascal_blaise",
-    "descartes":              "descartes_rene",
-    "kafka":                  "kafka_franz",
-    "franz kafka":            "kafka_franz",
-    "orwell":                 "orwell_george",
-    "george orwell":          "orwell_george",
-    "dostoievski":            "dostoievski_fedor",
-    "dostoevsky":             "dostoievski_fedor",
-    "dostoievsky":            "dostoievski_fedor",
-    "freud":                  "freud_sigmund",
-    "sigmund freud":          "freud_sigmund",
-    "nietzsche":              "nietzsche_friedrich",
-    "durkheim":               "durkheim_emile",
-    "marx":                   "marx_karl",
-    "karl marx":              "marx_karl",
-    "weber":                  "weber_max",
-    "bourdieu":               "bourdieu_pierre",
-    "tocqueville":            "tocqueville_alexis_de",
-    "machiavel":              "machiavel",
-    "montesquieu":            "montesquieu",
-    "platon":                 "platon",
-    "aristote":               "aristote",
-    "hegel":                  "hegel_georg_wilhelm_friedrich",
-    "kant":                   "kant_emmanuel",
+    "camus":                 "camus_albert",
+    "albert camus":          "camus_albert",
+    "sartre":                "sartre_jean-paul",
+    "jean paul sartre":      "sartre_jean-paul",
+    "jean-paul sartre":      "sartre_jean-paul",
+    "beauvoir":              "beauvoir_simone_de",
+    "simone de beauvoir":    "beauvoir_simone_de",
+    "hugo":                  "hugo_victor",
+    "victor hugo":           "hugo_victor",
+    "zola":                  "zola_emile",
+    "emile zola":            "zola_emile",
+    "balzac":                "balzac_honore_de",
+    "honore de balzac":      "balzac_honore_de",
+    "flaubert":              "flaubert_gustave",
+    "gustave flaubert":      "flaubert_gustave",
+    "proust":                "proust_marcel",
+    "marcel proust":         "proust_marcel",
+    "baudelaire":            "baudelaire_charles",
+    "charles baudelaire":    "baudelaire_charles",
+    "moliere":               "moliere",
+    "racine":                "racine_jean",
+    "voltaire":              "voltaire",
+    "rousseau":              "rousseau_jj",
+    "jean-jacques rousseau": "rousseau_jj",
+    "montaigne":             "montaigne",
+    "pascal":                "pascal_blaise",
+    "descartes":             "descartes_rene",
+    "kafka":                 "kafka_franz",
+    "franz kafka":           "kafka_franz",
+    "orwell":                "orwell_george",
+    "george orwell":         "orwell_george",
+    "dostoievski":           "dostoievski_fedor",
+    "dostoevsky":            "dostoievski_fedor",
+    "freud":                 "freud_sigmund",
+    "nietzsche":             "nietzsche_friedrich",
+    "durkheim":              "durkheim_emile",
+    "marx":                  "marx_karl",
+    "karl marx":             "marx_karl",
+    "weber":                 "weber_max",
+    "bourdieu":              "bourdieu_pierre",
+    "tocqueville":           "tocqueville_alexis_de",
+    "machiavel":             "machiavel",
+    "montesquieu":           "montesquieu",
+    "platon":                "platon",
+    "aristote":              "aristote",
+    "hegel":                 "hegel_georg_wilhelm_friedrich",
+    "kant":                  "kant_emmanuel",
 }
+
+# Liens à ignorer sur les pages auteur UQAM
+SKIP_PATTERNS = (
+    "benevoles", "/inter/", "javascript", "paypal",
+    "wikipedia", "facebook", "mailto", "crossref",
+    "cchic", "uqac", "agora", "dx.doi",
+)
 
 
 def normalize(s: str) -> str:
@@ -87,12 +95,12 @@ def get_uqam_path(author: str) -> str:
     return n.replace(" ", "_")
 
 
-# ── Parser HTML minimal (stdlib) ──────────────────────────────────────────────
+# ── Parser HTML (stdlib) ───────────────────────────────────────────────────────
 
 class LinkParser(HTMLParser):
     def __init__(self):
         super().__init__()
-        self.links = []          # [(href, text)]
+        self.links = []
         self._href = None
         self._buf  = []
 
@@ -115,94 +123,97 @@ class LinkParser(HTMLParser):
             self._buf  = []
 
 
-def fetch_links(url: str, timeout: int = 5):
+def fetch_html(url: str, timeout: int = 6) -> str:
+    """Récupère le HTML d'une page. Retourne '' en cas d'erreur."""
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": UA})
+        req = urllib.request.Request(url, headers={
+            "User-Agent":      UA,
+            "Accept":          "text/html,application/xhtml+xml,*/*;q=0.8",
+            "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+            "Accept-Encoding": "identity",   # pas de gzip → pas de décompression
+        })
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             raw = resp.read()
-        ct = resp.headers.get("Content-Type", "")
+            ct  = resp.headers.get("Content-Type", "")
+
         enc = "utf-8"
         if "charset=" in ct:
-            enc = ct.split("charset=")[-1].strip().split(";")[0]
+            enc = ct.split("charset=")[-1].strip().split(";")[0].strip()
         try:
-            html = raw.decode(enc, errors="replace")
+            return raw.decode(enc, errors="replace")
         except Exception:
-            html = raw.decode("latin-1", errors="replace")
-        p = LinkParser()
-        p.feed(html)
-        return p.links
+            return raw.decode("latin-1", errors="replace")
     except Exception:
-        return []
+        return ""
 
 
-# ── UQAM (2 niveaux) ──────────────────────────────────────────────────────────
+def parse_links(html: str):
+    p = LinkParser()
+    p.feed(html)
+    return p.links
+
+
+# ── UQAM ──────────────────────────────────────────────────────────────────────
 
 def scrape_uqam(author: str, title: str = "") -> list:
+    """
+    Stratégie directe :
+      1. Fetch la page auteur
+      2. Repère les liens relatifs HTML de sous-dossiers (ex: etranger/etranger.html)
+      3. Remplace .html par .pdf → URL directe du PDF (ex: etranger/etranger.pdf)
+    Aucune requête sur les sous-pages — rapide et fiable.
+    """
     path     = get_uqam_path(author)
-    url      = f"{UQAM_BASE}{path}/{path}.html"
     base_url = f"{UQAM_BASE}{path}/"
+    page_url = f"{base_url}{path}.html"
 
-    links = fetch_links(url, timeout=6)
-    if not links:
+    html = fetch_html(page_url)
+    if not html:
         return []
 
+    links       = parse_links(html)
     title_words = [normalize(w) for w in title.split() if len(w) > 3] if title else []
+    seen        = set()
+    results     = []
 
-    # Niveau 1 : sous-pages de livres (liens relatifs HTML avec sous-dossier)
-    book_pages = []
     for href, text in links:
-        if (
-            not href.startswith("http")
-            and not href.startswith("/")
-            and not href.startswith("javascript")
-            and "/" in href
-            and href.lower().endswith(".html")
-        ):
-            if title_words and not any(w in normalize(text) for w in title_words):
-                continue
-            book_pages.append((text or href.split("/")[0], base_url + href))
+        # Filtre : lien relatif avec sous-dossier, fichier HTML, pas de navigation
+        if not href or href.startswith(("http", "/", "javascript", ".", "#")):
+            continue
+        if any(p in href for p in SKIP_PATTERNS):
+            continue
+        if "/" not in href or not href.lower().endswith(".html"):
+            continue
 
-    if not book_pages:
-        return []
+        # Dériver l'URL du PDF
+        pdf_href = href[:-5] + ".pdf"        # etranger/etranger.html → etranger/etranger.pdf
+        pdf_url  = base_url + pdf_href
 
-    book_pages = book_pages[:10]
+        if pdf_url in seen:
+            continue
+        seen.add(pdf_url)
 
-    # Niveau 2 : PDF dans chaque sous-page
-    def get_pdf(book_title: str, book_url: str):
-        sub_links = fetch_links(book_url, timeout=4)
-        book_dir  = book_url.rsplit("/", 1)[0]
-        for href, _ in sub_links:
-            if href.lower().endswith(".pdf"):
-                if href.startswith("http"):
-                    pdf_url = href
-                elif href.startswith("/"):
-                    pdf_url = f"https://classiques.uqam.ca{href}"
-                else:
-                    pdf_url = f"{book_dir}/{href}"
-                return {
-                    "title":  book_title,
-                    "author": author,
-                    "url":    pdf_url,
-                    "format": "PDF",
-                    "source": "UQAM",
-                    "lang":   "FR",
-                    "cta":    "Ouvrir dans Apple Books",
-                    "grey":   False,
-                }
-        return None
+        # Titre affiché : texte du lien ou nom du fichier nettoyé
+        display = text or href.split("/")[-1].replace(".html", "").replace("_", " ").title()
+        if not display or len(display) < 2:
+            continue
 
-    results = []
-    with ThreadPoolExecutor(max_workers=5) as ex:
-        futures = [ex.submit(get_pdf, t, u) for t, u in book_pages]
-        try:
-            for future in as_completed(futures, timeout=7):
-                res = future.result()
-                if res:
-                    results.append(res)
-        except Exception:
-            pass
+        # Filtre par titre si fourni
+        if title_words and not any(w in normalize(display) for w in title_words):
+            continue
 
-    return results[:8]
+        results.append({
+            "title":  display,
+            "author": author,
+            "url":    pdf_url,
+            "format": "PDF",
+            "source": "UQAM",
+            "lang":   "FR",
+            "cta":    "Ouvrir dans Apple Books",
+            "grey":   False,
+        })
+
+    return results[:12]
 
 
 # ── Handler Vercel ─────────────────────────────────────────────────────────────
