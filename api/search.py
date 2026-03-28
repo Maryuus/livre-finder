@@ -102,42 +102,88 @@ def get_uqam_path(author: str) -> str:
 
 
 def scrape_uqam(author: str, title: str = "") -> list:
+    """UQAM scrape en 2 niveaux : page auteur → pages livres → PDFs."""
     if not HAS_DEPS:
         return []
-    path = get_uqam_path(author)
-    url  = f"{UQAM_BASE}{path}/{path}.html"
+    path     = get_uqam_path(author)
+    url      = f"{UQAM_BASE}{path}/{path}.html"
+    base_url = f"{UQAM_BASE}{path}/"
+
     try:
         r = requests.get(url, timeout=6, headers=HEADERS)
         if r.status_code != 200:
             return []
-        soup = BeautifulSoup(r.content, "html.parser")
-        results, seen = [], set()
+
+        soup        = BeautifulSoup(r.content, "html.parser")
         title_words = [normalize(w) for w in title.split() if len(w) > 3] if title else []
+
+        # Niveau 1 : repérer les liens vers les sous-pages de chaque livre
+        book_pages = []
         for a in soup.find_all("a", href=True):
             href = a["href"]
-            if not href.lower().endswith(".pdf"):
-                continue
             text = a.get_text(" ", strip=True)
-            if not text or len(text) < 3:
-                continue
-            if href.startswith("http"):
-                full_url = href
-            elif href.startswith("/"):
-                full_url = f"https://classiques.uqam.ca{href}"
-            else:
-                full_url = f"{UQAM_BASE}{path}/{href}"
-            if full_url in seen:
-                continue
-            seen.add(full_url)
-            if title_words and not any(w in normalize(text) for w in title_words):
-                continue
-            results.append({
-                "title": text, "author": author,
-                "url": full_url, "format": "PDF",
-                "source": "UQAM", "lang": "FR",
-                "cta": "Ouvrir dans Apple Books", "grey": False,
-            })
+            # Lien relatif vers un sous-dossier HTML (ex: "l_etranger/l_etranger.html")
+            if (
+                not href.startswith("http")
+                and not href.startswith("/")
+                and not href.startswith("javascript")
+                and "/" in href
+                and href.lower().endswith(".html")
+            ):
+                if title_words and not any(w in normalize(text) for w in title_words):
+                    continue
+                book_pages.append((text or href.split("/")[0], base_url + href))
+
+        if not book_pages:
+            return []
+
+        book_pages = book_pages[:10]
+
+        # Niveau 2 : pour chaque page de livre, trouver le PDF
+        def get_pdf(book_title: str, book_url: str):
+            try:
+                r2 = requests.get(book_url, timeout=4, headers=HEADERS)
+                if r2.status_code != 200:
+                    return None
+                soup2    = BeautifulSoup(r2.content, "html.parser")
+                book_dir = book_url.rsplit("/", 1)[0]
+                for a2 in soup2.find_all("a", href=True):
+                    h = a2["href"]
+                    if not h.lower().endswith(".pdf"):
+                        continue
+                    if h.startswith("http"):
+                        pdf_url = h
+                    elif h.startswith("/"):
+                        pdf_url = f"https://classiques.uqam.ca{h}"
+                    else:
+                        pdf_url = f"{book_dir}/{h}"
+                    return {
+                        "title":  book_title,
+                        "author": author,
+                        "url":    pdf_url,
+                        "format": "PDF",
+                        "source": "UQAM",
+                        "lang":   "FR",
+                        "cta":    "Ouvrir dans Apple Books",
+                        "grey":   False,
+                    }
+                return None
+            except Exception:
+                return None
+
+        results = []
+        with ThreadPoolExecutor(max_workers=5) as ex:
+            futures = [ex.submit(get_pdf, t, u) for t, u in book_pages]
+            try:
+                for future in as_completed(futures, timeout=6):
+                    res = future.result()
+                    if res:
+                        results.append(res)
+            except Exception:
+                pass
+
         return results[:8]
+
     except Exception:
         return []
 
