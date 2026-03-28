@@ -150,6 +150,9 @@
     .tag-gutenberg   { background: #dbeafe; color: #1e40af; }
     .tag-openlibrary { background: #fef3c7; color: #92400e; }
     .tag-uqam        { background: #ede9fe; color: #5b21b6; }
+    .tag-gallica     { background: #fdf2f8; color: #86198f; }
+    .tag-standard    { background: #f0fdfa; color: #0f766e; }
+    .tag-feedbooks   { background: #fff7ed; color: #c2410c; }
     .tag-lang        { background: var(--bg); color: var(--muted); }
 
     .btn-dl {
@@ -195,7 +198,7 @@
 
 <div class="header">
   <h1>📚 LivreFinder</h1>
-  <p>Gutenberg · UQAM · Open Library</p>
+  <p>Gutenberg · Open Library · UQAM · Gallica · Standard Ebooks · Feedbooks</p>
 </div>
 
 <div class="search-box">
@@ -228,12 +231,12 @@
     $id('results').innerHTML = `
       <div class="loading">
         <div class="spinner"></div>
-        <p>Recherche sur Gutenberg, UQAM et Open Library…</p>
+        <p>Recherche sur 6 bibliothèques…</p>
       </div>`;
 
     const [g, u, o] = await Promise.allSettled([
       fetchGutenberg(title, author),
-      fetchUQAM(author, title),
+      fetchServer(author, title),
       fetchOpenLibrary(title, author),
     ]);
 
@@ -271,7 +274,8 @@
   }
 
   /* ── UQAM (via notre API Vercel) ─────────────────────────── */
-  async function fetchUQAM(author, title) {
+  // UQAM + Gallica + Standard Ebooks + Feedbooks (tous via l'API serveur)
+  async function fetchServer(author, title) {
     if (!author) return [];
     const p = new URLSearchParams({ author, title: title || '' });
     const r = await fetch(`/api/search?${p}`);
@@ -315,7 +319,14 @@
       return;
     }
 
-    const sourceTag = { Gutenberg: 'tag-gutenberg', 'Open Library': 'tag-openlibrary', UQAM: 'tag-uqam' };
+    const sourceTag = {
+      'Gutenberg':      'tag-gutenberg',
+      'Open Library':   'tag-openlibrary',
+      'UQAM':           'tag-uqam',
+      'Gallica (BnF)':  'tag-gallica',
+      'Standard Ebooks':'tag-standard',
+      'Feedbooks':      'tag-feedbooks',
+    };
     const fmtTag    = { ePub: 'tag-epub', PDF: 'tag-pdf', 'ePub/PDF': 'tag-mixed' };
 
     const cards = books.map(b => {
